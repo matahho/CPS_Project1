@@ -474,7 +474,7 @@ LED 3 lights up for rates >= 15.
 
 
 ---
-##  Components Used (in Proteus)
+##  Hardware Components Used (in Proteus)
 
 ###  Microcontrollers
 - **2x Arduino Uno**
@@ -503,25 +503,14 @@ LED 3 lights up for rates >= 15.
 - **3x LEDs per Arduino**:
   - Indicate the watering rate
   
-
-- **Buzzers**:
-  - For audible alert (optional in simulation, connected in hardware setup).
-
 - **LCD Displays**:
   - Display temperature and rate on the master side.
   - Display moisture and status on the slave side.
 
----
-
-### 🔌 Communication
-- **I2C Bus**:
-  - **SDA** and **SCL** lines connected between the two Arduinos.
-  - **Master address**: Implicit (`Wire.begin()`).
-  - **Slave address**: `2` (defined via `#define MY_ADDRESS 2`).
 
 ---
 
-### 🔋 Power Supply
+###  Power Supply
 - 5V and GND rails provided to all modules.
 - Pull-up resistors used on I2C lines if needed (Proteus sometimes auto-configures).
 
@@ -542,7 +531,7 @@ LED 3 lights up for rates >= 15.
 
 ---
 
-## 🧪 Output Observation
+##  Output Observation
 
 - LCDs show temperature, rate, and moisture levels.
 - LEDs indicate the watering intensity.
