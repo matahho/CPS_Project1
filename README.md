@@ -55,7 +55,7 @@ The system uses two Edge Nodes (slaves) and one Central Node (master) communicat
 ---
 
 
-# Master Code – Smart Irrigation Controller
+# Master Code – Smart Irrigation Controller :
 
 This section provides a detailed explanation of the Master Arduino code used in a smart irrigation system. The Master device reads environmental data (temperature and light), requests soil moisture data from two slave devices, computes irrigation rates, and sends appropriate commands back to the slaves using the I2C protocol.
 
@@ -258,3 +258,216 @@ If moisture is 1, no water is needed (0).
 getLightDominance(): Determines which LDR (left or right) has higher light intensity.
 
 sendCommandToSlave(): Sends a command to the slave based on the calculated water rate and light dominance. The command is formatted as a string in the form "L-10", where L is the light dominance and 10 is the water rate.
+
+---
+
+# Slave Code Explanation:
+
+The Slave Arduino receives commands from the Master via I2C and processes them to control a servo and LEDs based on moisture levels and water rate calculations. The Slave also sends its moisture data back to the Master when requested. Below is a detailed explanation of the key parts of the code.
+
+### Code Block 1: Pin Definitions and Initialization
+
+```cpp
+#define MY_ADDRESS 2  // Slave address
+
+Servo myServo;
+const int led1 = 7; 
+const int led2 = 6;  
+const int led3 = 5;  // LED 5
+const int servo_pin = 8; 
+const int soilMoisturePin = A3;
+int moistureSensor;
+int moisture;
+```
+MY_ADDRESS: The I2C address for the slave device (set to 2).
+
+Servo myServo: Creates a Servo object to control the servo motor.
+
+LED Pins (led1, led2, led3): Pins connected to the LEDs for visual feedback of water rate.
+
+servo_pin: Pin connected to the servo.
+
+soilMoisturePin: Pin connected to the soil moisture sensor.
+
+moistureSensor: Stores the raw value from the moisture sensor.
+
+moisture: Stores the categorized moisture level.
+
+### Code Block 2: Setup Function:
+
+```cpp
+void setup() {
+  Wire.begin(MY_ADDRESS); // Slave address
+  Wire.onReceive(receiveEvent);
+  Wire.onRequest(requestEvent);
+  Serial.begin(9600);
+  Serial.println("Slave 1 Ready to work");
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+  pinMode(led3, OUTPUT);
+  myServo.attach(servo_pin);
+}
+
+```
+
+Wire.begin(MY_ADDRESS): Initializes I2C communication with the specified slave address.
+
+Wire.onReceive(receiveEvent): Registers the receiveEvent function to handle incoming data from the master.
+
+Wire.onRequest(requestEvent): Registers the requestEvent function to handle requests from the master.
+
+Serial.begin(9600): Starts serial communication for debugging.
+
+pinMode(): Configures the LED pins and servo pin as output.
+
+myServo.attach(servo_pin): Attaches the servo control to the specified pin.
+
+### Code Block 3: Main Loop:
+
+```cpp
+void loop() {
+  moistureSensor = analogRead(soilMoisturePin);
+  if(moistureSensor >= 800){
+    moisture = 250; // Moisture more than 80%
+  } else if(moistureSensor >= 500 && moistureSensor < 800){
+    moisture = 170; // Moisture less than 50%
+  } else {
+    moisture = 80; // Moisture between 80% and 50%
+  }
+  Serial.print("Moisture S1 = ");
+  Serial.println(moistureSensor);
+  Serial.print("Mapping S1= ");
+  Serial.println(moisture);
+  delay(250);
+}
+
+```
+
+analogRead(soilMoisturePin): Reads the analog value from the soil moisture sensor.
+
+Conditionals: Categorizes the moisture level based on the raw sensor reading:
+
+moisture >= 800: High moisture (mapped to 250).
+
+500 <= moisture < 800: Medium moisture (mapped to 170).
+
+moisture < 500: Low moisture (mapped to 80).
+
+Serial.print/println: Outputs the raw moisture reading and its mapped value to the serial monitor for debugging.
+
+delay(250): Introduces a small delay for stability.
+
+
+### Code Block 4: Event Handling (Receive and Request):
+
+```cpp
+
+void receiveEvent(int howMany) {
+  char buffer[10];
+  readMessage(buffer, sizeof(buffer));
+  
+  Serial.print("Received: ");
+  Serial.println(buffer);
+
+  char pos;
+  int rate;
+  if (parseMessage(buffer, pos, rate)) {
+    Serial.print("---Parsed rate: ");
+    Serial.println(rate);
+    Serial.print("---Parsed position: ");
+    Serial.println(pos);
+
+    setServoPosition(pos);
+    setLEDs(rate);
+  }
+}
+
+void requestEvent(){
+  Wire.write((byte*)&moisture, sizeof(moisture)); // Sizeof int is 2 bytes
+}
+
+
+```
+
+readMessage(): Reads the incoming message from the master into a buffer.
+
+parseMessage(): Extracts the position (pos) and water rate (rate) from the received message. The message is expected to be in the format "L-10", where L is the position and 10 is the water rate.
+
+setServoPosition(pos): Adjusts the servo position based on the received position ('L' or 'R').
+
+setLEDs(rate): Controls the LEDs based on the water rate:
+
+LED 1: Lights up if rate >= 5.
+
+LED 2: Lights up if rate >= 10.
+
+LED 3: Lights up if rate >= 15.
+
+Wire.write(): Sends the moisture level data (an integer) to the master when requested.
+
+
+### Code Block 5: ECode Block 5: Helper Functions ( Reading Message , Parsing the message , Servo control,LED control):
+
+```cpp
+
+void readMessage(char* buffer, size_t bufferSize) {
+  byte i = 0;
+  while (Wire.available() && i < bufferSize - 1) {
+    buffer[i++] = Wire.read();
+  }
+  buffer[i] = '\0'; // null-terminate
+}
+
+
+```
+
+  Wire.read(): Reads bytes from the I2C bus into the buffer.
+
+Null-termination: Ensures the string is properly terminated for string manipulation.
+
+
+```cpp
+bool parseMessage(char* buffer, char& pos, int& rate) {
+  char* dashPtr = strchr(buffer, '-');
+  if (dashPtr == NULL) return false;
+
+  *dashPtr = '\0';
+  pos = buffer[0];
+  rate = atoi(dashPtr + 1);
+  return true;
+}
+
+```
+
+strchr(): Finds the position of the dash (-) in the message buffer.
+
+atoi(): Converts the string part after the dash into an integer (the water rate).
+
+Returns: true if parsing is successful, otherwise false.
+
+```cpp
+void setServoPosition(char pos) {
+  int position_rotate = (pos == 'L') ? 60 : 120;
+  myServo.write(position_rotate);
+}
+
+```
+
+myServo.write(): Sets the servo to the specified position. If the position is 'L', the servo rotates to 60 degrees; if it's 'R', it rotates to 120 degrees.
+
+```cpp
+void setLEDs(int rate) {
+  digitalWrite(led1, rate >= 5);
+  digitalWrite(led2, rate >= 10);
+  digitalWrite(led3, rate >= 15);
+}
+
+```
+
+digitalWrite(): Turns on the LEDs based on the water rate.
+
+LED 1 lights up for rates >= 5.
+
+LED 2 lights up for rates >= 10.
+
+LED 3 lights up for rates >= 15.
