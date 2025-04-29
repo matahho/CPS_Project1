@@ -68,6 +68,8 @@ This section provides a detailed explanation of the Master Arduino code used in 
 #define SLAVE_ADDR_2 3  // Address for ARD2 (slave)
 Wire.begin();
 
+```
+
 The Master is initialized to use I2C (Wire.begin()) and communicates with two slaves identified by addresses 2 and 3.
 
 const int tempraturePin = A0;
