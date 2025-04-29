@@ -471,3 +471,80 @@ LED 1 lights up for rates >= 5.
 LED 2 lights up for rates >= 10.
 
 LED 3 lights up for rates >= 15.
+
+
+---
+##  Components Used (in Proteus)
+
+###  Microcontrollers
+- **2x Arduino Uno**
+  - **Master Arduino**: Gathers sensor data (moisture, temperature), makes decisions, and sends instructions via I2C.
+  - **Slave Arduino**: Receives servo and LED commands, and reports moisture level back to the master.
+
+---
+
+###  Sensors
+- **Soil Moisture Sensors** (`SOIL1`, `SOIL2`):
+  - Connected to analog pins .
+  - Measures the volumetric water content in the soil.
+  - Analog signal used for finer accuracy (thresholds defined in code).
+
+- **LM35 Temperature Sensor**:
+  - Connected to Master Arduino.
+  - Provides ambient temperature data to calculate watering rate.
+
+---
+
+###  Actuators and Output Devices
+- **2x Servo Motors**:
+  - Connected to digital pins 
+  - Represents the valve opening direction (`L` for left, `R` for right).
+  
+- **3x LEDs per Arduino**:
+  - Indicate the watering rate
+  
+
+- **Buzzers**:
+  - For audible alert (optional in simulation, connected in hardware setup).
+
+- **LCD Displays**:
+  - Display temperature and rate on the master side.
+  - Display moisture and status on the slave side.
+
+---
+
+### 🔌 Communication
+- **I2C Bus**:
+  - **SDA** and **SCL** lines connected between the two Arduinos.
+  - **Master address**: Implicit (`Wire.begin()`).
+  - **Slave address**: `2` (defined via `#define MY_ADDRESS 2`).
+
+---
+
+### 🔋 Power Supply
+- 5V and GND rails provided to all modules.
+- Pull-up resistors used on I2C lines if needed (Proteus sometimes auto-configures).
+
+---
+
+
+## 📷 Circuit Diagram (Proteus)
+
+![Circuit Diagram](https://github.com/notarealone/CPS_IOT_HW/blob/main/pic/Screenshot%202025-04-29%20231029.png)
+
+## ▶️ How to Simulate
+
+1. Open the `.pdsprj` file in Proteus.
+2. Load the **Master Arduino** with the compiled Master sketch.
+3. Load the **Slave Arduino** with the compiled Slave sketch.
+4. Press **Play** to start the simulation.
+5. Adjust soil moisture (via potentiometer or slider) and observe system behavior.
+
+---
+
+## 🧪 Output Observation
+
+- LCDs show temperature, rate, and moisture levels.
+- LEDs indicate the watering intensity.
+- Servo rotates according to calculated position.
+- I2C ensures proper master-slave synchronization.
