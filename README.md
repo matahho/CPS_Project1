@@ -2,6 +2,12 @@
 
 # Smart Plant Monitoring and Irrigation System
 
+## Team:
+- Alireza Hosseini
+- Soheil HajianManesh
+- SeyedMahdi HajiSeyedHossein
+- Amirali Shahriary
+
 ## Project Overview
 This project implements a smart plant monitoring system using Arduino boards that can:
 - Measure soil moisture, light intensity, and temperature.
@@ -26,19 +32,54 @@ The system uses two Edge Nodes (slaves) and one Central Node (master) communicat
   - Actuate motors and water valves accordingly.
 
 
-## Hardware Components
+## Hardware Components Used
+- 3x Arduino UNO (or compatible)
+- 2x Soil Moisture Sensors
+- 2x Light Dependent Resistors (LDRs)
+- 1x Temperature Sensor (Analog)
+- 2x Servo Motors
+- 6x LEDs (3 for each slave)
+- I2C wires (SDA/SCL)
+- Resistors (for LDR voltage dividers)
+- Breadboard and jumper wires
 
-- 3 x Arduino boards (1 Master + 2 Slaves)
-- Soil moisture sensors (A3 analog pin)
-- LDR sensors (A1 and A2 analog pins on Master)
-- Temperature sensor (to be added, e.g., LM35 or DHT11)
-- Servo motors (for rotating plants)
-- DC pumps or solenoid valves (for watering plants)
 
 
 ## Communication Protocol
 
-- **I2C Communication**
-  - Master initiates communication.
-  - Slaves provide soil moisture readings.
-  - Master sends specific control codes for actuation.
+- **Master → Slave (write):**
+  - Message format: `'L-10'` (position-light + watering rate)
+- **Slave → Master (read):**
+  - Sends 1 byte (mapped from analog moisture reading)
+ 
+---
+
+
+# Master Code – Smart Irrigation Controller
+
+This section provides a detailed explanation of the Master Arduino code used in a smart irrigation system. The Master device reads environmental data (temperature and light), requests soil moisture data from two slave devices, computes irrigation rates, and sends appropriate commands back to the slaves using the I2C protocol.
+
+---
+
+## 🔌 I2C Communication Setup
+
+```cpp
+#define SLAVE_ADDR_1 2  // Address for ARD1 (slave)
+#define SLAVE_ADDR_2 3  // Address for ARD2 (slave)
+Wire.begin();
+
+The Master is initialized to use I2C (Wire.begin()) and communicates with two slaves identified by addresses 2 and 3.
+
+const int tempraturePin = A0;
+const int ldrLeftPin = A1;
+const int ldrRightPin = A2;
+
+
+Analog pins are assigned to:
+
+A0: Temperature sensor
+
+A1: LDR (left)
+
+A2: LDR (right)
+
