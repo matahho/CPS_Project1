@@ -3,10 +3,10 @@
 # Smart Plant Monitoring and Irrigation System
 
 ## Team:
-- Alireza Hosseini
-- Soheil HajianManesh
-- SeyedMahdi HajiSeyedHossein
-- Amirali Shahriary
+- Alireza Hosseini (810100125)
+- Soheil HajianManesh (810100119)
+- SeyedMahdi HajiSeyedHossein (810100118)
+- Amirali Shahriary (810100173)
 
 ## Project Overview
 This project implements a smart plant monitoring system using Arduino boards that can:
@@ -61,27 +61,200 @@ This section provides a detailed explanation of the Master Arduino code used in 
 
 ---
 
-## 🔌 I2C Communication Setup
+### Code Block 1: Slave Addresses and Sensor Pins
 
 ```cpp
-#define SLAVE_ADDR_1 2  // Address for ARD1 (slave)
-#define SLAVE_ADDR_2 3  // Address for ARD2 (slave)
-Wire.begin();
+// Slave Addresses
+#define SLAVE_ADDR_RIGHT 2
+#define SLAVE_ADDR_LEFT  3
+
+// Sensor Pins
+const int TEMP_PIN = A0;
+const int LDR_LEFT_PIN = A1;
+const int LDR_RIGHT_PIN = A2;
+
+```
+SLAVE_ADDR_RIGHT: I2C address for the right slave (ARD1).
+
+SLAVE_ADDR_LEFT: I2C address for the left slave (ARD2).
+
+TEMP_PIN: Pin for reading temperature data.
+
+LDR_LEFT_PIN: Pin for reading the left Light Dependent Resistor (LDR) sensor.
+
+LDR_RIGHT_PIN: Pin for reading the right Light Dependent Resistor (LDR) sensor.
+
+### Code Block 2: Setup Function
+
+```cpp
+void setup() {
+  Wire.begin();
+  Serial.begin(9600);
+  Serial.println("Master Setup Complete");
+}
+
 
 ```
 
-The Master is initialized to use I2C (Wire.begin()) and communicates with two slaves identified by addresses 2 and 3.
+Wire.begin(): Initializes I2C communication as the master.
 
-const int tempraturePin = A0;
-const int ldrLeftPin = A1;
-const int ldrRightPin = A2;
+Serial.begin(9600): Starts serial communication for debugging.
+
+Serial.println("Master Setup Complete"): Sends a message to indicate that the setup process has finished.
+
+### Code Block 3: Main Loop
+
+```cpp
+void loop() {
+  readTemperature();
+  delay(300); // Increased delay
+
+  readLightSensors();
+  delay(300); // Increased delay
+
+  moistureRight = readMoistureFromSlave(SLAVE_ADDR_RIGHT, "Right");
+  delay(300); // Increased delay
+
+  moistureLeft  = readMoistureFromSlave(SLAVE_ADDR_LEFT,  "Left");
+  delay(300); // Increased delay
+
+  sendCommandToSlave(SLAVE_ADDR_RIGHT, moistureRight);
+  delay(300); // Increased delay
+
+  sendCommandToSlave(SLAVE_ADDR_LEFT,  moistureLeft);
+  delay(1000); // Final delay before next cycle
+}
+
+```
+
+readTemperature(): Reads the temperature from the sensor and maps it to a value.
+
+readLightSensors(): Reads the light levels from both LDR sensors.
+
+readMoistureFromSlave(): Requests moisture data from the slave devices and processes it.
+
+sendCommandToSlave(): Sends commands to the slaves based on the moisture level and light dominance.
+
+Delays: Introduces pauses between sensor reads and communication for stability.
+
+### Code Block 4: Temperature Reading
+
+```cpp
+void readTemperature() {
+  int rawValue = analogRead(TEMP_PIN);
+  temperature = map(rawValue, 0, 205, 0, 100);
+  Serial.print("Temperature: ");
+  Serial.println(temperature);
+}
+
+```
+analogRead(TEMP_PIN): Reads the analog value from the temperature sensor.
+
+map(rawValue, 0, 205, 0, 100): Maps the raw sensor value to a temperature value between 0 and 100.
+
+Serial.print/println: Prints the temperature value to the serial monitor for debugging.
 
 
-Analog pins are assigned to:
+### Code Block 5: Light Sensor Readings
 
-A0: Temperature sensor
+```cpp
+void readLightSensors() {
+  lightLeft = analogRead(LDR_LEFT_PIN);
+  lightRight = analogRead(LDR_RIGHT_PIN);
+  Serial.print("Light (L: ");
+  Serial.print(lightLeft);
+  Serial.print(" - R: ");
+  Serial.print(lightRight);
+  Serial.println(")");
+}
 
-A1: LDR (left)
+```
 
-A2: LDR (right)
+analogRead(LDR_LEFT_PIN): Reads the analog value from the left LDR sensor.
 
+analogRead(LDR_RIGHT_PIN): Reads the analog value from the right LDR sensor.
+
+Serial.print/println: Outputs the light readings of both sensors for debugging.
+
+### Code Block 6: Moisture Reading from Slaves
+```cpp
+
+int readMoistureFromSlave(uint8_t slaveAddr, const char* label) {
+  delay(50); // Slight wait before request
+  Wire.requestFrom(slaveAddr, 1);
+  delay(20); // Allow time for slave response
+  char moistureStatus = Wire.read();
+  int level;
+
+  if ((uint8_t)moistureStatus > 230)
+    level = 1;
+  else if ((uint8_t)moistureStatus > 168)
+    level = 0;
+  else
+    level = -1;
+
+  Serial.print(label);
+  Serial.print(" Moisture: ");
+  Serial.println(level);
+  return level;
+}
+
+
+```
+
+Wire.requestFrom(slaveAddr, 1): Requests 1 byte of data from the slave device at the specified address.
+
+Wire.read(): Reads the moisture status sent by the slave.
+
+Serial.print/println: Displays the moisture level for each side (left or right) on the serial monitor.
+
+Moisture Levels: The moisture status is categorized as:
+
+1: High moisture.
+
+0: Normal moisture.
+
+-1: Low moisture.
+
+
+### Code Block 7: Moisture Reading from Slaves
+
+```cpp
+int calculateWaterRate(int moisture, int temp) {
+  if (moisture == -1) return 15;
+  if (moisture == 0)  return (temp > 25) ? 10 : 5;
+  return 0;
+}
+
+char getLightDominance() {
+  return (lightLeft >= lightRight) ? 'L' : 'R';
+}
+
+void sendCommandToSlave(uint8_t slaveAddr, int moistureLevel) {
+  int rate = calculateWaterRate(moistureLevel, temperature);
+  char direction = getLightDominance();
+
+  String message = String(direction) + "-" + String(rate);
+  Wire.beginTransmission(slaveAddr);
+  Wire.write(message.c_str());
+  Wire.endTransmission();
+
+  Serial.print("Sent to Slave ");
+  Serial.print(slaveAddr);
+  Serial.print(": ");
+  Serial.println(message);
+}
+
+```
+
+calculateWaterRate(moisture, temp): Calculates the water rate based on moisture level and temperature.
+
+If moisture is -1, a high water rate of 15 is returned.
+
+If moisture is 0, a moderate water rate of 10 or 5 is returned depending on the temperature.
+
+If moisture is 1, no water is needed (0).
+
+getLightDominance(): Determines which LDR (left or right) has higher light intensity.
+
+sendCommandToSlave(): Sends a command to the slave based on the calculated water rate and light dominance. The command is formatted as a string in the form "L-10", where L is the light dominance and 10 is the water rate.
